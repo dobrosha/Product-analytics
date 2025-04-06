@@ -97,6 +97,7 @@ user_data["dominant_platform"] = user_data["user_id"].apply(lambda x: assign_dom
 
 # Шаг 4: Генерация логов
 logs = []
+premium_logs = []  # Создадим список для премиум логов
 
 def generate_session_events(user, session_date, session_id, event_multiplier=1.0):
     events = []
@@ -163,6 +164,14 @@ for user in user_data.itertuples():
             "platform": user.dominant_platform
         })
 
+        premium_logs.append({
+            "user_id": user.user_id,
+            "timestamp": premium_date,
+            "subscription_type": subscription_type,
+            "purchase_source": np.random.choice(["in-app", "website"], p=[0.8, 0.2]),
+            "purchase_price": price_by_type[subscription_type]
+        })
+
         for _ in range(total_sessions):
             session_id = fake.uuid4()
             session_offset = np.random.randint(-10, 10)
@@ -177,6 +186,9 @@ for user in user_data.itertuples():
 
 logs_df = pd.DataFrame(logs)
 logs_df.to_csv("telegram_logs.csv", index=False)
+
+premium_purchase_df = pd.DataFrame(premium_logs)  # Таблица премиум пользователей
+premium_purchase_df.to_csv("telegram_premium_purchases.csv", index=False)  # Сохраняем таблицу премиум пользователей
 
 print("Основные данные сгенерированы и сохранены")
 
