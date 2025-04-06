@@ -110,7 +110,7 @@ def generate_session_events(user, session_date, session_id, event_multiplier=1.0
 
     for _ in range(events_count):
         event_type = random.choices(
-            event_types, weights=[10, 10, 15, 20, 10, 5, 0, 5, 10, 5, 5, 5], k=1
+            event_types, weights=[10, 10, 15, 20, 10, 2, 0, 10, 5, 5, 8, 7], k=1
         )[0]
         timestamp = session_date + timedelta(seconds=np.random.randint(0, 86400))
 
@@ -190,7 +190,7 @@ logs_df.to_csv("telegram_logs.csv", index=False)
 premium_logs_df.to_csv("telegram_premium_users.csv", index=False)
 premium_usage_df.to_csv("telegram_premium_usage.csv", index=False)
 
-print("✅ Основные данные сгенерированы и сохранены!")
+print("Основные данные сгенерированы и сохранены")
 
 # Шаг 5: Исторические подписки
 historical_logs = []
@@ -220,7 +220,7 @@ for user_id in hist_premium_ids:
 premium_logs_df_hist = pd.DataFrame(historical_logs)
 premium_logs_df_hist.to_csv("telegram_premium_historical_2022.csv", index=False)
 
-print("📦 Исторические данные за 2022 год сохранены!")
+print("Исторические данные за 2022 год сохранены")
 
 # Шаг 6: Обновление user_data по состоянию на 2023-01-01
 def get_subscription_end(row):
@@ -238,4 +238,4 @@ active_premium = premium_logs_df_hist[
 user_data['is_premium'] = user_data['user_id'].isin(active_premium).astype(int)
 user_data.to_csv("telegram_user_data.csv", index=False)
 
-print("🛠 Флаг is_premium обновлён на основе данных на 01.01.2023!")
+print("Флаг is_premium обновлён на основе данных на 01.01.2023")
