@@ -16,14 +16,14 @@ total_users = 10000
 premium_users = 1250
 
 event_types = [
-    "view_main_screen", "open_dialog", "send_message", "open_chat", "send_sticker", 
-    "buy_gift", "buy_premium", "react_to_message", "voice_call", "video_call", 
+    "view_main_screen", "open_dialog", "send_message", "open_chat", "send_sticker",
+    "buy_gift", "buy_premium", "react_to_message", "voice_call", "video_call",
     "send_voice_message", "send_video_message"
 ]
 
 premium_event_types = [
-    "use_custom_emoji", "post_story", "voice_to_text", "extra_cloud_storage", 
-    "emoji_status_profile", "custom_profile", "telegram_app_icon", 
+    "use_custom_emoji", "post_story", "voice_to_text", "extra_cloud_storage",
+    "emoji_status_profile", "custom_profile", "telegram_app_icon",
     "animated_profile_picture", "extra_reactions"
 ]
 
@@ -40,10 +40,14 @@ premium_event_weights = {
 }
 
 premium_types = ["3_months", "6_months", "12_months"]
-platforms = ["iOS", "Android", "Desktop", "Web"]
+price_by_type = {
+    "3_months": 899,
+    "6_months": 1690,
+    "12_months": 3190
+}
+
 locations = ["Moscow", "Saint Petersburg", "Novosibirsk", "Ekaterinburg", "Kazan", "Nizhny Novgorod"]
 
-# Категории активности
 activity_categories = {
     'active': {'percentage': 0.20, 'min_sessions': 15, 'max_sessions': 30, 'min_events': 20, 'max_events': 40},
     'medium': {'percentage': 0.50, 'min_sessions': 8, 'max_sessions': 20, 'min_events': 10, 'max_events': 20},
@@ -52,13 +56,12 @@ activity_categories = {
 
 start_date = datetime(2023, 1, 1)
 
-# Шаг 1: Генерация базовых данных пользователей
+# Шаг 1: Базовые данные пользователей
 user_data = pd.DataFrame({
     "user_id": np.arange(1, total_users + 1),
     "location": np.random.choice(locations, total_users)
 })
 
-# Функция для назначения категории активности
 def assign_activity_category():
     rand_value = np.random.random()
     if rand_value < activity_categories['active']['percentage']:
@@ -70,39 +73,41 @@ def assign_activity_category():
 
 user_data['activity_category'] = user_data['user_id'].apply(lambda x: assign_activity_category())
 
-# Шаг 2: Распределение премиумов по активности с учетом вероятности конверсии
+# Шаг 2: Премиум статус
 conversion_rate_by_activity = {
-    "active": 0.20,  # вероятность покупки для активных пользователей
-    "medium": 0.05,  # вероятность для средних пользователей
-    "rare": 0.05     # вероятность для редких пользователей
+    "active": 0.20,
+    "medium": 0.05,
+    "rare": 0.05
 }
 
 premium_user_ids = []
 
-# Для каждого пользователя проверяем, становится ли он премиум в зависимости от активности
 for user in user_data.itertuples():
     activity_category = user.activity_category
-    purchase_probability = conversion_rate_by_activity[activity_category]
-    
-    if np.random.random() < purchase_probability:
+    if np.random.random() < conversion_rate_by_activity[activity_category]:
         premium_user_ids.append(user.user_id)
 
-# Обновляем статус премиум пользователей
 user_data["is_premium"] = user_data["user_id"].isin(premium_user_ids).astype(int)
 
-# Шаг 3: Платформы
-def assign_platform(row):
-    if row["is_premium"] == 1:
-        return np.random.choice(["iOS", "Android", "Desktop", "Web"], p=[0.75, 0.15, 0.05, 0.05])
-    else:
-        return np.random.choice(["iOS", "Android", "Desktop", "Web"], p=[0.4, 0.3, 0.15, 0.15])
+# Шаг 3: Преобладающая платформа
+def assign_dominant_platform():
+    return np.random.choice(["iOS", "Android"], p=[0.6, 0.4])
 
-user_data["platform"] = user_data.apply(assign_platform, axis=1)
+user_data["dominant_platform"] = user_data["user_id"].apply(lambda x: assign_dominant_platform())
 
 # Шаг 4: Генерация логов
-# --- ДОП. ФУНКЦИЯ: генерация сессий ---
+logs = []
+
 def generate_session_events(user, session_date, session_id, event_multiplier=1.0):
     events = []
+
+    # 80% мобильные, 20% desktop
+    is_mobile = np.random.rand() < 0.80
+    if is_mobile:
+        session_platform = user.dominant_platform  # либо iOS либо Android
+    else:
+        session_platform = "Desktop"
+
     events_count = np.random.randint(
         int(activity_categories[user.activity_category]['min_events'] * event_multiplier),
         int(activity_categories[user.activity_category]['max_events'] * event_multiplier) + 1
@@ -118,64 +123,52 @@ def generate_session_events(user, session_date, session_id, event_multiplier=1.0
             "user_id": user.user_id,
             "session_id": session_id,
             "timestamp": timestamp,
-            "event_type": event_type
+            "event_type": event_type,
+            "platform": session_platform
         })
 
-        # премиум события ТОЛЬКО после подписки
         if user.is_premium == 1 and event_multiplier > 1.0:
-            for _ in range(np.random.randint(1, 4)):
-                premium_usage_logs.append({
-                    "user_id": user.user_id,
-                    "timestamp": timestamp,
-                    "premium_event_type": np.random.choice(
-                        list(premium_event_weights.keys()), 
-                        p=list(premium_event_weights.values())
-                    )
-                })
+            # Добавляем премиум-события
+            premium_event_type = np.random.choice(
+                list(premium_event_weights.keys()),
+                p=list(premium_event_weights.values())
+            )
+            events.append({
+                "user_id": user.user_id,
+                "session_id": session_id,
+                "timestamp": timestamp,
+                "event_type": premium_event_type,
+                "platform": session_platform
+            })
 
     return events
 
-# --- ШАГ 4: Генерация логов с разной активностью до/после подписки ---
-logs, premium_logs, premium_usage_logs = [], [], []
-
+# Генерация по активности и подписке
 for user in user_data.itertuples():
     activity_category = user.activity_category
     total_sessions = np.random.randint(
-        activity_categories[activity_category]['min_sessions'], 
+        activity_categories[activity_category]['min_sessions'],
         activity_categories[activity_category]['max_sessions'] + 1
     )
 
     if user.is_premium == 1:
-        # покупка в случайный день между 5 и 25 числом месяца
         premium_date = start_date + timedelta(days=np.random.randint(5, 26), seconds=np.random.randint(0, 86400))
         subscription_type = np.random.choice(premium_types)
 
-        # лог покупки премиума
         logs.append({
             "user_id": user.user_id,
             "session_id": fake.uuid4(),
             "timestamp": premium_date,
-            "event_type": "buy_premium"
-        })
-        premium_logs.append({
-            "user_id": user.user_id,
-            "timestamp": premium_date,
-            "subscription_type": subscription_type,
-            "purchase_source": np.random.choice(["in-app", "website"], p=[0.8, 0.2]),
-            "purchase_price": price_by_type[subscription_type]
+            "event_type": "buy_premium",
+            "platform": user.dominant_platform
         })
 
-        # генерируем сессии до и после
-        for i in range(total_sessions):
+        for _ in range(total_sessions):
             session_id = fake.uuid4()
-            session_offset = np.random.randint(-10, 10)  # +-10 дней от даты подписки
+            session_offset = np.random.randint(-10, 10)
             session_date = premium_date + timedelta(days=session_offset)
-
-            if session_date >= premium_date:
-                logs.extend(generate_session_events(user, session_date, session_id, event_multiplier=1.5))  # активнее после
-            else:
-                logs.extend(generate_session_events(user, session_date, session_id, event_multiplier=1.0))  # обычная активность
-
+            multiplier = 1.4 if session_date >= premium_date else 1.0
+            logs.extend(generate_session_events(user, session_date, session_id, event_multiplier=multiplier))
     else:
         for _ in range(total_sessions):
             session_id = fake.uuid4()
@@ -183,19 +176,15 @@ for user in user_data.itertuples():
             logs.extend(generate_session_events(user, session_date, session_id, event_multiplier=1.0))
 
 logs_df = pd.DataFrame(logs)
-premium_logs_df = pd.DataFrame(premium_logs)
-premium_usage_df = pd.DataFrame(premium_usage_logs)
-
 logs_df.to_csv("telegram_logs.csv", index=False)
-premium_logs_df.to_csv("telegram_premium_users.csv", index=False)
-premium_usage_df.to_csv("telegram_premium_usage.csv", index=False)
 
 print("Основные данные сгенерированы и сохранены")
 
-# Шаг 5: Исторические подписки
+
+# Шаг 5: История за 2022
 historical_logs = []
 historical_users = user_data['user_id'].tolist()
-num_hist_premium = int(len(historical_users) * 0.13)
+num_hist_premium = int(len(historical_users) * 0.08)
 hist_premium_ids = random.sample(historical_users, num_hist_premium)
 
 for user_id in hist_premium_ids:
@@ -222,7 +211,7 @@ premium_logs_df_hist.to_csv("telegram_premium_historical_2022.csv", index=False)
 
 print("Исторические данные за 2022 год сохранены")
 
-# Шаг 6: Обновление user_data по состоянию на 2023-01-01
+# Шаг 6: Обновление статуса на 01.01.2023
 def get_subscription_end(row):
     months = {"3_months": 3, "6_months": 6, "12_months": 12}
     return row['timestamp'] + DateOffset(months=months[row['subscription_type']])
