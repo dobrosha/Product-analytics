@@ -226,16 +226,16 @@ control_group_df.to_csv("lavka_control_group_df.csv", index=False)
 
 
 # ======================= Результат =======================
-print("👤 Users:")
+print("Users:")
 print(user_df.head())
 
-print("\n📱 Events:")
+print("\nEvents:")
 print(events_df.head())
 
-print("\n📣 Campaigns:")
+print("\nCampaigns:")
 print(campaigns_df.head())
 
-print("\n💬 Campaign Interactions:")
+print("\nCampaign Interactions:")
 print(campaign_interactions_df.head())
 
 test_user_ids = set(user_id for user_id, _ in test_group)
